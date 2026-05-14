@@ -1,17 +1,19 @@
 const { Pool } = require('pg');
+const dns = require('dns');
+
+// Forcer IPv4
+dns.setDefaultResultOrder('ipv4first');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 60000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
   keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
 });
 
-pool.on('connect', (client) => {
-  client.query('SET statement_timeout = 30000');
+pool.on('connect', () => {
   if (process.env.NODE_ENV !== 'test') console.log('✅ PostgreSQL connecté');
 });
 
