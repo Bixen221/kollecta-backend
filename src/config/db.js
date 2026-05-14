@@ -3,18 +3,20 @@ const { Pool } = require('pg');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  max: 10,
+  idleTimeoutMillis: 60000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
 
-pool.on('connect', () => {
-  console.log('✅ PostgreSQL connecté');
+pool.on('connect', (client) => {
+  client.query('SET statement_timeout = 30000');
+  if (process.env.NODE_ENV !== 'test') console.log('✅ PostgreSQL connecté');
 });
 
 pool.on('error', (err) => {
   console.error('❌ Erreur PostgreSQL:', err.message);
-  process.exit(-1);
 });
 
 module.exports = {
