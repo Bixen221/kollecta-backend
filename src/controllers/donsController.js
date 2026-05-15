@@ -155,10 +155,15 @@ const confirmerDon = async (req, res, next) => {
     if (!resa.length) return res.status(404).json({ success: false, message: 'Réservation introuvable.' });
 
     const r = resa[0];
-    let update = {};
+
+    // Annulation par le demandeur
+    if (role === 'annuler' && r.demandeur_id === req.user.id) {
+      await db.query("UPDATE reservations SET statut = 'annule' WHERE id = $1", [r.id]);
+      await db.query('UPDATE dons SET quantite_dispo = quantite_dispo + 1 WHERE id = $1', [r.don_id]);
+      return res.json({ success: true, message: 'Réservation annulée.' });
+    }
 
     if (role === 'proprio' && r.proprietaire_id === req.user.id) {
-      update = { confirme_proprio: true };
       await db.query('UPDATE reservations SET confirme_proprio = TRUE, statut = $1 WHERE id = $2',
         [r.confirme_demandeur ? 'cloture' : 'confirme_proprio', r.id]);
     } else if (role === 'demandeur' && r.demandeur_id === req.user.id) {
@@ -168,7 +173,6 @@ const confirmerDon = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Non autorisé.' });
     }
 
-    // Si les deux ont confirmé, clôturer le don
     const { rows: updated } = await db.query('SELECT * FROM reservations WHERE id = $1', [r.id]);
     if (updated[0].confirme_proprio && updated[0].confirme_demandeur) {
       await db.query("UPDATE reservations SET statut = 'cloture' WHERE id = $1", [r.id]);
