@@ -40,6 +40,7 @@ app.use('/api/auth',     authRoutes);
 app.use('/api/dons',     donsRoutes);
 app.use('/api/encheres', encheresRoutes);
 app.use('/api/medias',   mediasRoutes);
+app.use('/api/notifications', require('./routes/notifications'));
 
 app.use(notFound);
 app.use(errorHandler);
