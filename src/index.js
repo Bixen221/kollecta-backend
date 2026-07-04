@@ -41,7 +41,7 @@ app.use('/api/dons',     donsRoutes);
 app.use('/api/encheres', encheresRoutes);
 app.use('/api/medias',   mediasRoutes);
 app.use('/api/notifications', require('./routes/notifications'));
-
+app.use('/api/evaluations', require('./routes/evaluations'));
 app.use(notFound);
 app.use(errorHandler);
 
