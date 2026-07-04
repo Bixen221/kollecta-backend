@@ -204,7 +204,7 @@ const mesDons = async (req, res, next) => {
 const mesReservations = async (req, res, next) => {
   try {
     const { rows } = await db.query(`
-      SELECT r.*, d.titre, d.type, d.quartier, d.ville,
+      SELECT r.*, d.titre, d.type, d.quartier, d.ville, d.proprietaire_id,
         u.nom, u.prenom, u.whatsapp,
         CASE WHEN u.whatsapp IS NOT NULL 
           THEN 'https://wa.me/' || REPLACE(u.whatsapp, '+', '') 
