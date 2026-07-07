@@ -11,11 +11,23 @@ const uploadPhoto = async (req, res, next) => {
 
     const { entite_type, entite_id, ordre = 0 } = req.body;
 
-    if (!['don', 'enchere'].includes(entite_type)) {
+    if (!['don', 'enchere', 'avatar'].includes(entite_type)) {
       return res.status(400).json({ success: false, message: 'Type invalide. Utilisez don ou enchere.' });
     }
 
     // Vérifier que l'entité appartient à l'utilisateur
+    if (entite_type === 'avatar') {
+      if (entite_id !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Non autorise.' });
+      }
+      await db.query('UPDATE users SET avatar_url = $1 WHERE id = $2', [req.file.path, req.user.id]);
+      return res.status(201).json({
+        success: true,
+        message: 'Photo de profil mise a jour !',
+        media: { id: uuidv4(), entite_type, entite_id, url: req.file.path, public_id: req.file.filename, ordre: 0 }
+      });
+    }
+
     const table = entite_type === 'don' ? 'dons' : 'encheres';
     const col   = entite_type === 'don' ? 'proprietaire_id' : 'vendeur_id';
     const { rows } = await db.query(`SELECT id FROM ${table} WHERE id = $1 AND ${col} = $2`, [entite_id, req.user.id]);
