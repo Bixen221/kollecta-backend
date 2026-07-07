@@ -8,6 +8,7 @@ const {
   googleAuth,
   moi,
   mettreAJourProfil,
+  mettreAJourAvatar,
   enregistrerFcmToken,
 } = require('../controllers/authController');
 
@@ -35,6 +36,8 @@ router.post('/google', [
 
 router.get('/moi', authMiddleware, moi);
 router.put('/profil', authMiddleware, mettreAJourProfil);
+router.put('/avatar', authMiddleware, mettreAJourAvatar);
+router.put('/avatar', authMiddleware, mettreAJourAvatar);
 router.post('/fcm-token', authMiddleware, [
   body('token').notEmpty().withMessage('Token FCM obligatoire'),
   body('plateforme').isIn(['ios', 'android', 'web']).withMessage('Plateforme invalide'),

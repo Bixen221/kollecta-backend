@@ -90,6 +90,20 @@ const mettreAJourProfil = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const mettreAJourAvatar = async (req, res, next) => {
+  try {
+    const { avatar_url } = req.body;
+    if (!avatar_url) {
+      return res.status(400).json({ success: false, message: "URL avatar manquante." });
+    }
+    const { rows } = await db.query(
+      `UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING *`,
+      [avatar_url, req.user.id]
+    );
+    res.json({ success: true, message: "Photo de profil mise a jour.", user: formatUser(rows[0]) });
+  } catch (err) { next(err); }
+};
+
 const enregistrerFcmToken = async (req, res, next) => {
   try {
     const { token, plateforme } = req.body;
@@ -101,4 +115,4 @@ const enregistrerFcmToken = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { inscription, connexion, googleAuth, moi, mettreAJourProfil, enregistrerFcmToken };
+module.exports = { inscription, connexion, googleAuth, moi, mettreAJourProfil, mettreAJourAvatar, enregistrerFcmToken };
