@@ -6,7 +6,7 @@ const { adminAuth }       = require('../middleware/adminAuth');
 
 router.use(authMiddleware, adminAuth);
 
-// GET /api/admin/stats — Statistiques globales
+// GET /api/admin/stats — Statistiques globales et KPIs
 router.get('/stats', async (req, res, next) => {
   try {
     const [users, dons, encheres, reservations] = await Promise.all([
@@ -20,15 +20,55 @@ router.get('/stats', async (req, res, next) => {
       db.query("SELECT COUNT(*) FROM encheres WHERE statut = 'en_cours'"),
     ]);
 
+    // Nouveaux sur les 7 derniers jours
+    const [nouveauxUsers, nouveauxDons, nouvellesEncheres] = await Promise.all([
+      db.query("SELECT COUNT(*) FROM users WHERE cree_le >= NOW() - INTERVAL '7 days'"),
+      db.query("SELECT COUNT(*) FROM dons WHERE cree_le >= NOW() - INTERVAL '7 days'"),
+      db.query("SELECT COUNT(*) FROM encheres WHERE cree_le >= NOW() - INTERVAL '7 days'"),
+    ]);
+
+    // Taux de dons completes
+    const [donsClotures] = await Promise.all([
+      db.query("SELECT COUNT(*) FROM dons WHERE statut = 'cloture'"),
+    ]);
+    const totalDonsNum = parseInt(dons.rows[0].count);
+    const tauxCompletion = totalDonsNum > 0
+      ? Math.round((parseInt(donsClotures.rows[0].count) / totalDonsNum) * 100)
+      : 0;
+
+    // Reservations : confirmees vs annulees
+    const [resaConfirmees, resaAnnulees] = await Promise.all([
+      db.query("SELECT COUNT(*) FROM reservations WHERE statut = 'cloture'"),
+      db.query("SELECT COUNT(*) FROM reservations WHERE statut = 'annule'"),
+    ]);
+
+    // Note moyenne globale
+    const noteMoyenne = await db.query('SELECT AVG(note_moyenne) as moyenne FROM users WHERE note_moyenne > 0');
+
+    // Volume total enchères en cours
+    const volumeEncheres = await db.query("SELECT COALESCE(SUM(offre_actuelle), 0) as total FROM encheres WHERE statut = 'en_cours'");
+
+    // Utilisateurs non verifies
+    const nonVerifies = await db.query('SELECT COUNT(*) FROM users WHERE verifie = false');
+
     res.json({
       success: true,
       stats: {
         total_users:        parseInt(users.rows[0].count),
-        total_dons:         parseInt(dons.rows[0].count),
+        total_dons:         totalDonsNum,
         total_encheres:     parseInt(encheres.rows[0].count),
         total_reservations: parseInt(reservations.rows[0].count),
         dons_actifs:        parseInt(donsActifs.rows[0].count),
         encheres_en_cours:  parseInt(encheresEnCours.rows[0].count),
+        nouveaux_users_7j:      parseInt(nouveauxUsers.rows[0].count),
+        nouveaux_dons_7j:       parseInt(nouveauxDons.rows[0].count),
+        nouvelles_encheres_7j:  parseInt(nouvellesEncheres.rows[0].count),
+        taux_completion_dons:   tauxCompletion,
+        resa_confirmees:        parseInt(resaConfirmees.rows[0].count),
+        resa_annulees:          parseInt(resaAnnulees.rows[0].count),
+        note_moyenne_globale:   parseFloat(noteMoyenne.rows[0].moyenne || 0).toFixed(1),
+        volume_encheres_cours:  parseInt(volumeEncheres.rows[0].total),
+        users_non_verifies:     parseInt(nonVerifies.rows[0].count),
       },
     });
   } catch (err) { next(err); }
