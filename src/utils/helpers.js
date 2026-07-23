@@ -21,6 +21,7 @@ const formatUser = (user) => ({
   nb_dons:      user.nb_dons,
   verifie:      user.verifie,
   cree_le:      user.cree_le,
+  est_admin:    user.est_admin || false,
 });
 
 const genererLienWhatsApp = (numeroWhatsapp, nomDon) => {

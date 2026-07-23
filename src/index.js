@@ -42,6 +42,7 @@ app.use('/api/encheres', encheresRoutes);
 app.use('/api/medias',   mediasRoutes);
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/evaluations', require('./routes/evaluations'));
+app.use('/api/admin', require('./routes/admin'));
 app.use(notFound);
 app.use(errorHandler);
 
