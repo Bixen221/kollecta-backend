@@ -153,7 +153,7 @@ router.get('/annonces-sans-photo', async (req, res, next) => {
       LEFT JOIN medias m ON m.entite_id = d.id AND m.entite_type = 'don'
       WHERE m.id IS NULL
       ORDER BY d.cree_le DESC
-    \`);
+    `);
 
     const encheresSansPhoto = await db.query(`
       SELECT e.id, e.titre, e.cree_le, u.nom, u.prenom, 'enchere' as categorie_annonce
@@ -162,7 +162,7 @@ router.get('/annonces-sans-photo', async (req, res, next) => {
       LEFT JOIN medias m ON m.entite_id = e.id AND m.entite_type = 'enchere'
       WHERE m.id IS NULL
       ORDER BY e.cree_le DESC
-    \`);
+    `);
 
     res.json({
       success: true,
