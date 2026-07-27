@@ -146,7 +146,7 @@ router.delete('/encheres/:id', async (req, res, next) => {
 // GET /api/admin/annonces-sans-photo — Dons et encheres sans image
 router.get('/annonces-sans-photo', async (req, res, next) => {
   try {
-    const donsSansPhoto = await db.query(\`
+    const donsSansPhoto = await db.query(`
       SELECT d.id, d.titre, d.type, d.cree_le, u.nom, u.prenom, 'don' as categorie_annonce
       FROM dons d
       JOIN users u ON u.id = d.proprietaire_id
@@ -155,7 +155,7 @@ router.get('/annonces-sans-photo', async (req, res, next) => {
       ORDER BY d.cree_le DESC
     \`);
 
-    const encheresSansPhoto = await db.query(\`
+    const encheresSansPhoto = await db.query(`
       SELECT e.id, e.titre, e.cree_le, u.nom, u.prenom, 'enchere' as categorie_annonce
       FROM encheres e
       JOIN users u ON u.id = e.vendeur_id
