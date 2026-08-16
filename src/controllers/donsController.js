@@ -137,7 +137,7 @@ const reserverDon = async (req, res, next) => {
     await db.query('UPDATE dons SET quantite_dispo = quantite_dispo - 1 WHERE id = $1', [req.params.id]);
 
     const demandeurNom = `${req.user.prenom} ${req.user.nom}`;
-    await notifNouvelleReservation(don[0].proprietaire_id, demandeurNom, don[0].titre, rows[0].id);
+    await notifNouvelleReservation(don[0].proprietaire_id, demandeurNom, don[0].titre, rows[0].id, don[0].id);
 
     res.status(201).json({ success: true, message: 'Réservation confirmée ! Le propriétaire vous contactera sous 48h.', reservation: rows[0] });
   } catch (err) { next(err); }

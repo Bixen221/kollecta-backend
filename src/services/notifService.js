@@ -1,17 +1,29 @@
 const db    = require('../config/db');
-const admin = require('../config/firebase');
+const { envoyerNotificationPush } = require('../config/firebase');
+
+// Recupere les tokens FCM d'un utilisateur et envoie la notification push
+const envoyerPushAUtilisateur = async (userId, titre, message) => {
+  try {
+    const { rows } = await db.query('SELECT token FROM fcm_tokens WHERE user_id = $1', [userId]);
+    if (!rows.length) return;
+    const tokens = rows.map(r => r.token);
+    await envoyerNotificationPush(tokens, titre, message);
+  } catch (err) {
+    console.error('Erreur envoyerPushAUtilisateur:', err.message);
+  }
+};
 
 // ── Envoyer une notification push ─────────────────────────
-const envoyerNotification = async (userId, { type, titre, message, entiteId = null }) => {
+const envoyerNotification = async (userId, { type, titre, message, entiteId = null, entiteType = null }) => {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
 
     // 1. Sauvegarder en BDD
     await client.query(
-      `INSERT INTO notifications (user_id, type, titre, message, entite_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [userId, type, titre, message, entiteId]
+      `INSERT INTO notifications (user_id, type, titre, message, entite_id, entite_type)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, type, titre, message, entiteId, entiteType]
     );
 
     // 2. Récupérer les tokens FCM de l'utilisateur
@@ -62,13 +74,15 @@ const envoyerNotification = async (userId, { type, titre, message, entiteId = nu
 // ── Notifications spécifiques au flux don ─────────────────
 
 // Notif proprio : nouvelle réservation
-const notifNouvelleReservation = async (proprietaireId, demandeurNom, titreDon, reservationId) => {
+const notifNouvelleReservation = async (proprietaireId, demandeurNom, titreDon, reservationId, donId = null) => {
   await envoyerNotification(proprietaireId, {
-    type:     'reservation',
-    titre:    '🎁 Nouvelle réservation',
-    message:  `${demandeurNom} a réservé votre don "${titreDon}". Contactez-le via WhatsApp.`,
-    entiteId: reservationId,
+    type:       'reservation',
+    titre:      '🎁 Nouvelle réservation',
+    message:    `${demandeurNom} a réservé votre don "${titreDon}". Contactez-le via WhatsApp.`,
+    entiteId:   donId || reservationId,
+    entiteType: 'don',
   });
+  await envoyerPushAUtilisateur(proprietaireId, '🎁 Nouvelle réservation', `${demandeurNom} a réservé votre don "${titreDon}".`);
 };
 
 // Notif demandeur : proprio a initié le contact
