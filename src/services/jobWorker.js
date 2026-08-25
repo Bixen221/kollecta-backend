@@ -4,6 +4,7 @@ const {
   notifConfirmationProprio,
   notifConfirmationDemandeur,
   notifDonCloture,
+  notifEnchereGagnee,
 } = require('./notifService');
 
 // ── Démarrer tous les jobs cron ───────────────────────────
@@ -13,8 +14,8 @@ const demarrerJobs = () => {
   // Toutes les heures : vérifier les réservations en attente de confirmation
   cron.schedule('0 * * * *', verifierDelais48h);
 
-  // Tous les jours à minuit : clôturer les enchères expirées
-  cron.schedule('0 0 * * *', cloturerEncheresExpirees);
+  // Toutes les 5 minutes : clôturer les enchères expirées
+  cron.schedule('*/5 * * * *', cloturerEncheresExpirees);
 
   // Toutes les 6h : clôturer les dons expirés
   cron.schedule('0 */6 * * *', cloturerDonsExpires);
@@ -95,7 +96,15 @@ const cloturerEncheresExpirees = async () => {
       RETURNING id, titre, vendeur_id, meilleur_offrant_id, offre_actuelle
     `);
 
-    console.log(`✅ ${rows.length} enchère(s) clôturée(s) automatiquement`);
+    for (const enchere of rows) {
+      if (enchere.meilleur_offrant_id) {
+        await notifEnchereGagnee(enchere.meilleur_offrant_id, enchere.titre, enchere.offre_actuelle, enchere.id);
+      }
+    }
+
+    if (rows.length > 0) {
+      console.log(`✅ ${rows.length} enchère(s) clôturée(s) automatiquement`);
+    }
   } catch (err) {
     console.error('❌ Erreur job enchères:', err.message);
   }

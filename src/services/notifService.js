@@ -124,6 +124,18 @@ const notifDonCloture = async (userId, titreDon) => {
   });
 };
 
+// Notif enchère gagnée
+const notifEnchereGagnee = async (gagnantId, titreEnchere, montant, enchereId) => {
+  await envoyerNotification(gagnantId, {
+    type:       'enchere_gagnee',
+    titre:      '🏆 Enchère remportée !',
+    message:    `Félicitations, vous avez remporté "${titreEnchere}" pour ${montant.toLocaleString()} FCFA. Contactez le vendeur.`,
+    entiteId:   enchereId,
+    entiteType: 'enchere',
+  });
+  await envoyerPushAUtilisateur(gagnantId, '🏆 Enchère remportée !', `Vous avez remporté "${titreEnchere}" pour ${montant.toLocaleString()} FCFA.`);
+};
+
 // Notif don supprimé — réservants
 const notifDonSupprime = async (demandeurId, titreDon) => {
   await envoyerNotification(demandeurId, {
@@ -141,4 +153,5 @@ module.exports = {
   notifConfirmationDemandeur,
   notifDonCloture,
   notifDonSupprime,
+  notifEnchereGagnee,
 };
