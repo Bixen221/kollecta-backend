@@ -10,8 +10,9 @@ const demarrerConversation = async (req, res, next) => {
     }
 
     const table = entite_type === 'don' ? 'dons' : 'encheres';
+    const colonneProprio = entite_type === 'don' ? 'proprietaire_id' : 'vendeur_id';
     const { rows: entite } = await db.query(
-      `SELECT id, proprietaire_id, titre FROM ${table} WHERE id = $1`,
+      `SELECT id, ${colonneProprio} AS proprietaire_id, titre FROM ${table} WHERE id = $1`,
       [entite_id]
     );
     if (!entite.length) {
