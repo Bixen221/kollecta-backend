@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 // GET /api/encheres — Lister les enchères
 const listerEncheres = async (req, res, next) => {
   try {
-    const { statut, categorie, page = 1, limite = 20 } = req.query;
+    const { statut, categorie, vendeur_id, page = 1, limite = 20 } = req.query;
     const offset = (page - 1) * limite;
     const conditions = ["e.statut != 'annule'"];
     const params = [];
@@ -12,6 +12,7 @@ const listerEncheres = async (req, res, next) => {
 
     if (statut)    { conditions.push(`e.statut = $${i++}`);    params.push(statut); }
     if (categorie) { conditions.push(`e.categorie = $${i++}`); params.push(categorie); }
+    if (vendeur_id) { conditions.push(`e.vendeur_id = $${i++}`); params.push(vendeur_id); }
 
     const where = conditions.join(' AND ');
 

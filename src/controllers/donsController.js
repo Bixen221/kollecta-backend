@@ -6,9 +6,9 @@ const { genererLienWhatsApp } = require('../utils/helpers');
 // GET /api/dons — Liste tous les dons
 const listerDons = async (req, res, next) => {
   try {
-    const { type, categorie, quartier, urgent, page = 1, limite = 20 } = req.query;
+    const { type, categorie, quartier, urgent, proprietaire_id, page = 1, limite = 20 } = req.query;
     const offset = (page - 1) * limite;
-    const conditions = ["d.statut = 'actif'", "d.quantite_dispo > 0"];
+    const conditions = proprietaire_id ? ["d.statut != 'supprime'"] : ["d.statut = 'actif'", "d.quantite_dispo > 0"];
     const params = [];
     let i = 1;
 
@@ -16,6 +16,7 @@ const listerDons = async (req, res, next) => {
     if (categorie) { conditions.push(`d.categorie = $${i++}`); params.push(categorie); }
     if (quartier)  { conditions.push(`d.quartier ILIKE $${i++}`); params.push(`%${quartier}%`); }
     if (urgent === 'true') { conditions.push(`d.urgent = TRUE`); }
+    if (proprietaire_id) { conditions.push(`d.proprietaire_id = $${i++}`); params.push(proprietaire_id); }
 
     const where = conditions.join(' AND ');
 
