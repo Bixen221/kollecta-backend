@@ -67,7 +67,11 @@ const listerConversations = async (req, res, next) => {
         CASE
           WHEN c.entite_type = 'don' THEN (SELECT titre FROM dons WHERE id = c.entite_id)
           WHEN c.entite_type = 'enchere' THEN (SELECT titre FROM encheres WHERE id = c.entite_id)
-        END AS entite_titre
+        END AS entite_titre,
+        CASE
+          WHEN c.entite_type = 'don' THEN (SELECT numero FROM dons WHERE id = c.entite_id)
+          WHEN c.entite_type = 'enchere' THEN (SELECT numero FROM encheres WHERE id = c.entite_id)
+        END AS entite_numero
       FROM conversations c
       JOIN users proprio ON proprio.id = c.proprietaire_id
       JOIN users autre ON autre.id = c.demandeur_id
@@ -89,7 +93,11 @@ const obtenirMessages = async (req, res, next) => {
         CASE
           WHEN c.entite_type = 'don' THEN (SELECT titre FROM dons WHERE id = c.entite_id)
           WHEN c.entite_type = 'enchere' THEN (SELECT titre FROM encheres WHERE id = c.entite_id)
-        END AS entite_titre
+        END AS entite_titre,
+        CASE
+          WHEN c.entite_type = 'don' THEN (SELECT numero FROM dons WHERE id = c.entite_id)
+          WHEN c.entite_type = 'enchere' THEN (SELECT numero FROM encheres WHERE id = c.entite_id)
+        END AS entite_numero
       FROM conversations c
       JOIN users proprio ON proprio.id = c.proprietaire_id
       JOIN users autre ON autre.id = c.demandeur_id
