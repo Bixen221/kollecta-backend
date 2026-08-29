@@ -226,7 +226,7 @@ const listerCandidats = async (req, res, next) => {
 
     const { rows: candidats } = await db.query(`
       SELECT r.id, r.statut, r.cree_le, r.demandeur_id,
-        u.nom, u.prenom, u.quartier, u.ville, u.avatar_url, u.note_moyenne
+        u.nom, u.prenom, u.quartier, u.ville, u.avatar_url, u.note_moyenne, u.whatsapp
       FROM reservations r
       JOIN users u ON u.id = r.demandeur_id
       WHERE r.don_id = $1 AND r.statut NOT IN ('annule')
@@ -254,7 +254,7 @@ const choisirCandidat = async (req, res, next) => {
     if (r.quantite_dispo <= 0) return res.status(400).json({ success: false, message: 'Plus de disponibilités pour ce don.' });
 
     // Choisir ce candidat
-    await db.query("UPDATE reservations SET statut = 'confirme_proprio', contact_le = NOW() WHERE id = $1", [r.id]);
+    await db.query("UPDATE reservations SET statut = 'contacte', contact_le = NOW(), deadline_confirm = NOW() + INTERVAL '48 hours' WHERE id = $1", [r.id]);
     const { rows: updatedDon } = await db.query(
       'UPDATE dons SET quantite_dispo = quantite_dispo - 1 WHERE id = $1 RETURNING quantite_dispo',
       [r.don_id]
