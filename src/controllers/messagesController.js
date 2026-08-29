@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 // POST /api/messages/demarrer — Démarre (ou récupère) une conversation liée à un don/enchère
 const demarrerConversation = async (req, res, next) => {
   try {
-    const { entite_type, entite_id } = req.body;
+    const { entite_type, entite_id, demandeur_id } = req.body;
     if (!['don', 'enchere'].includes(entite_type)) {
       return res.status(400).json({ success: false, message: 'entite_type invalide.' });
     }
@@ -20,13 +20,26 @@ const demarrerConversation = async (req, res, next) => {
     }
 
     const proprietaireId = entite[0].proprietaire_id;
-    if (proprietaireId === req.user.id) {
+
+    // Si l'appelant est le propriétaire, il doit préciser avec qui démarrer la conversation
+    // (ex: un candidat depuis la liste des réservations). Sinon, l'appelant est le demandeur.
+    let demandeurFinal;
+    if (req.user.id === proprietaireId) {
+      if (!demandeur_id) {
+        return res.status(400).json({ success: false, message: 'demandeur_id requis pour le propriétaire.' });
+      }
+      demandeurFinal = demandeur_id;
+    } else {
+      demandeurFinal = req.user.id;
+    }
+
+    if (proprietaireId === demandeurFinal) {
       return res.status(400).json({ success: false, message: 'Vous ne pouvez pas démarrer une conversation avec vous-même.' });
     }
 
     const { rows: existing } = await db.query(
       `SELECT * FROM conversations WHERE entite_type = $1 AND entite_id = $2 AND demandeur_id = $3`,
-      [entite_type, entite_id, req.user.id]
+      [entite_type, entite_id, demandeurFinal]
     );
     if (existing.length) {
       return res.json({ success: true, conversation: existing[0] });
@@ -35,7 +48,7 @@ const demarrerConversation = async (req, res, next) => {
     const { rows } = await db.query(`
       INSERT INTO conversations (id, entite_type, entite_id, proprietaire_id, demandeur_id)
       VALUES ($1,$2,$3,$4,$5) RETURNING *
-    `, [uuidv4(), entite_type, entite_id, proprietaireId, req.user.id]);
+    `, [uuidv4(), entite_type, entite_id, proprietaireId, demandeurFinal]);
 
     res.status(201).json({ success: true, conversation: rows[0] });
   } catch (err) { next(err); }

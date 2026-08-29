@@ -1,6 +1,6 @@
 const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
-const { notifNouvelleReservation, notifDonSupprime } = require('../services/notifService');
+const { notifNouvelleReservation, notifDonSupprime, notifContactInitie } = require('../services/notifService');
 const { genererLienWhatsApp } = require('../utils/helpers');
 
 // GET /api/dons — Liste tous les dons
@@ -116,7 +116,7 @@ const supprimerDon = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/dons/:id/reserver — Réserver un don
+// POST /api/dons/:id/reserver — Candidater pour un don
 const reserverDon = async (req, res, next) => {
   try {
     const { rows: don } = await db.query("SELECT * FROM dons WHERE id = $1 AND statut = 'actif'", [req.params.id]);
@@ -125,21 +125,19 @@ const reserverDon = async (req, res, next) => {
     if (don[0].quantite_dispo <= 0) return res.status(400).json({ success: false, message: 'Plus de disponibilités.' });
 
     const { rows: existing } = await db.query(
-      "SELECT id FROM reservations WHERE don_id = $1 AND demandeur_id = $2 AND statut NOT IN ('annule')",
+      "SELECT id FROM reservations WHERE don_id = $1 AND demandeur_id = $2 AND statut NOT IN ('annule', 'refuse')",
       [req.params.id, req.user.id]
     );
-    if (existing.length) return res.status(409).json({ success: false, message: 'Vous avez déjà réservé ce don.' });
+    if (existing.length) return res.status(409).json({ success: false, message: 'Vous avez déjà candidaté pour ce don.' });
 
     const { rows } = await db.query(`
       INSERT INTO reservations (id, don_id, demandeur_id) VALUES ($1,$2,$3) RETURNING *
     `, [uuidv4(), req.params.id, req.user.id]);
 
-    await db.query('UPDATE dons SET quantite_dispo = quantite_dispo - 1 WHERE id = $1', [req.params.id]);
-
     const demandeurNom = `${req.user.prenom} ${req.user.nom}`;
     await notifNouvelleReservation(don[0].proprietaire_id, demandeurNom, don[0].titre, rows[0].id, don[0].id);
 
-    res.status(201).json({ success: true, message: 'Réservation confirmée ! Le propriétaire vous contactera sous 48h.', reservation: rows[0] });
+    res.status(201).json({ success: true, message: 'Demande envoyée ! Le propriétaire vous contactera s\'il vous choisit.', reservation: rows[0] });
   } catch (err) { next(err); }
 };
 
@@ -219,4 +217,67 @@ const mesReservations = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { listerDons, obtenirDon, creerDon, modifierDon, supprimerDon, reserverDon, confirmerDon, mesDons, mesReservations };
+// GET /api/dons/:id/candidats — Liste des candidats (propriétaire uniquement)
+const listerCandidats = async (req, res, next) => {
+  try {
+    const { rows: don } = await db.query('SELECT * FROM dons WHERE id = $1', [req.params.id]);
+    if (!don.length) return res.status(404).json({ success: false, message: 'Don introuvable.' });
+    if (don[0].proprietaire_id !== req.user.id) return res.status(403).json({ success: false, message: 'Non autorisé.' });
+
+    const { rows: candidats } = await db.query(`
+      SELECT r.id, r.statut, r.cree_le, r.demandeur_id,
+        u.nom, u.prenom, u.quartier, u.ville, u.avatar_url, u.note_moyenne
+      FROM reservations r
+      JOIN users u ON u.id = r.demandeur_id
+      WHERE r.don_id = $1 AND r.statut NOT IN ('annule')
+      ORDER BY r.cree_le ASC
+    `, [req.params.id]);
+
+    res.json({ success: true, candidats });
+  } catch (err) { next(err); }
+};
+
+// POST /api/dons/reservations/:id/choisir — Choisir le destinataire du don (propriétaire uniquement)
+const choisirCandidat = async (req, res, next) => {
+  try {
+    const { rows: resa } = await db.query(`
+      SELECT r.*, d.titre, d.proprietaire_id, d.quantite_dispo, d.id AS don_id
+      FROM reservations r JOIN dons d ON d.id = r.don_id
+      WHERE r.id = $1
+    `, [req.params.id]);
+
+    if (!resa.length) return res.status(404).json({ success: false, message: 'Candidature introuvable.' });
+    const r = resa[0];
+
+    if (r.proprietaire_id !== req.user.id) return res.status(403).json({ success: false, message: 'Non autorisé.' });
+    if (r.statut !== 'en_attente') return res.status(400).json({ success: false, message: 'Cette candidature n\'est plus en attente.' });
+    if (r.quantite_dispo <= 0) return res.status(400).json({ success: false, message: 'Plus de disponibilités pour ce don.' });
+
+    // Choisir ce candidat
+    await db.query("UPDATE reservations SET statut = 'confirme_proprio', contact_le = NOW() WHERE id = $1", [r.id]);
+    const { rows: updatedDon } = await db.query(
+      'UPDATE dons SET quantite_dispo = quantite_dispo - 1 WHERE id = $1 RETURNING quantite_dispo',
+      [r.don_id]
+    );
+
+    await notifContactInitie(r.demandeur_id, `${req.user.prenom} ${req.user.nom}`, r.titre, r.id);
+
+    // Si plus de disponibilités, clôturer le don et refuser les autres candidats en attente
+    if (updatedDon[0].quantite_dispo <= 0) {
+      await db.query("UPDATE dons SET statut = 'cloture' WHERE id = $1", [r.don_id]);
+
+      const { rows: autres } = await db.query(
+        "SELECT id, demandeur_id FROM reservations WHERE don_id = $1 AND statut = 'en_attente' AND id != $2",
+        [r.don_id, r.id]
+      );
+      for (const autre of autres) {
+        await db.query("UPDATE reservations SET statut = 'refuse' WHERE id = $1", [autre.id]);
+        await notifDonSupprime(autre.demandeur_id, r.titre);
+      }
+    }
+
+    res.json({ success: true, message: 'Candidat choisi ! Vous pouvez maintenant échanger avec lui.' });
+  } catch (err) { next(err); }
+};
+
+module.exports = { listerDons, obtenirDon, creerDon, modifierDon, supprimerDon, reserverDon, confirmerDon, mesDons, mesReservations, listerCandidats, choisirCandidat };

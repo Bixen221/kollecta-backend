@@ -96,22 +96,24 @@ const notifContactInitie = async (demandeurId, proprietaireNom, titreDon, reserv
 };
 
 // Notif confirmation 48h — proprio
-const notifConfirmationProprio = async (proprietaireId, titreDon, reservationId) => {
+const notifConfirmationProprio = async (proprietaireId, titreDon, reservationId, donId = null) => {
   await envoyerNotification(proprietaireId, {
-    type:     'confirmation_requise',
-    titre:    '✅ Confirmez le don',
-    message:  `48h se sont écoulées. Avez-vous remis le don "${titreDon}" ?`,
-    entiteId: reservationId,
+    type:       'confirmation_requise',
+    titre:      '✅ Confirmez le don',
+    message:    `48h se sont écoulées. Avez-vous remis le don "${titreDon}" ?`,
+    entiteId:   donId || reservationId,
+    entiteType: donId ? 'don' : null,
   });
 };
 
 // Notif confirmation 48h — demandeur
-const notifConfirmationDemandeur = async (demandeurId, titreDon, reservationId) => {
+const notifConfirmationDemandeur = async (demandeurId, titreDon, reservationId, donId = null) => {
   await envoyerNotification(demandeurId, {
-    type:     'confirmation_requise',
-    titre:    '✅ Confirmez la réception',
-    message:  `48h se sont écoulées. Avez-vous reçu le don "${titreDon}" ?`,
-    entiteId: reservationId,
+    type:       'confirmation_requise',
+    titre:      '✅ Confirmez la réception',
+    message:    `48h se sont écoulées. Avez-vous reçu le don "${titreDon}" ?`,
+    entiteId:   donId || reservationId,
+    entiteType: donId ? 'don' : null,
   });
 };
 

@@ -58,14 +58,16 @@ const verifierDelais48h = async () => {
         await notifConfirmationProprio(
           resa.proprietaire_id,
           resa.titre_don,
-          resa.id
+          resa.id,
+          resa.don_id
         );
       }
       if (!resa.confirme_demandeur) {
         await notifConfirmationDemandeur(
           resa.demandeur_id,
           resa.titre_don,
-          resa.id
+          resa.id,
+          resa.don_id
         );
       }
 

@@ -27,7 +27,7 @@ app.use(morgan('dev'));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 2000,
   message: { success: false, message: 'Trop de requêtes.' },
 });
 app.use('/api/', limiter);

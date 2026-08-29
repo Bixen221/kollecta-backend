@@ -12,6 +12,8 @@ const {
   confirmerDon,
   mesDons,
   mesReservations,
+  listerCandidats,
+  choisirCandidat,
 } = require('../controllers/donsController');
 
 const { authMiddleware } = require('../middleware/auth');
@@ -33,5 +35,7 @@ router.put('/:id',    authMiddleware, modifierDon);
 router.delete('/:id', authMiddleware, supprimerDon);
 router.post('/:id/reserver', authMiddleware, reserverDon);
 router.post('/reservations/:id/confirmer', authMiddleware, confirmerDon);
+router.get('/:id/candidats', authMiddleware, listerCandidats);
+router.post('/reservations/:id/choisir', authMiddleware, choisirCandidat);
 
 module.exports = router;
