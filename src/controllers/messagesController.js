@@ -61,8 +61,13 @@ const listerConversations = async (req, res, next) => {
       SELECT c.*,
         CASE WHEN c.proprietaire_id = $1 THEN autre.nom ELSE proprio.nom END AS autre_nom,
         CASE WHEN c.proprietaire_id = $1 THEN autre.prenom ELSE proprio.prenom END AS autre_prenom,
+        CASE WHEN c.proprietaire_id = $1 THEN autre.whatsapp ELSE proprio.whatsapp END AS autre_whatsapp,
         (SELECT contenu FROM messages WHERE conversation_id = c.id ORDER BY cree_le DESC LIMIT 1) AS dernier_message,
-        (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND expediteur_id != $1 AND lu = FALSE) AS non_lus
+        (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND expediteur_id != $1 AND lu = FALSE) AS non_lus,
+        CASE
+          WHEN c.entite_type = 'don' THEN (SELECT titre FROM dons WHERE id = c.entite_id)
+          WHEN c.entite_type = 'enchere' THEN (SELECT titre FROM encheres WHERE id = c.entite_id)
+        END AS entite_titre
       FROM conversations c
       JOIN users proprio ON proprio.id = c.proprietaire_id
       JOIN users autre ON autre.id = c.demandeur_id
@@ -76,7 +81,20 @@ const listerConversations = async (req, res, next) => {
 // GET /api/messages/conversations/:id — Messages d'une conversation
 const obtenirMessages = async (req, res, next) => {
   try {
-    const { rows: conv } = await db.query('SELECT * FROM conversations WHERE id = $1', [req.params.id]);
+    const { rows: conv } = await db.query(`
+      SELECT c.*,
+        CASE WHEN c.proprietaire_id = $2 THEN autre.nom ELSE proprio.nom END AS autre_nom,
+        CASE WHEN c.proprietaire_id = $2 THEN autre.prenom ELSE proprio.prenom END AS autre_prenom,
+        CASE WHEN c.proprietaire_id = $2 THEN autre.whatsapp ELSE proprio.whatsapp END AS autre_whatsapp,
+        CASE
+          WHEN c.entite_type = 'don' THEN (SELECT titre FROM dons WHERE id = c.entite_id)
+          WHEN c.entite_type = 'enchere' THEN (SELECT titre FROM encheres WHERE id = c.entite_id)
+        END AS entite_titre
+      FROM conversations c
+      JOIN users proprio ON proprio.id = c.proprietaire_id
+      JOIN users autre ON autre.id = c.demandeur_id
+      WHERE c.id = $1
+    `, [req.params.id, req.user.id]);
     if (!conv.length) return res.status(404).json({ success: false, message: 'Conversation introuvable.' });
     if (conv[0].proprietaire_id !== req.user.id && conv[0].demandeur_id !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Non autorisé.' });
