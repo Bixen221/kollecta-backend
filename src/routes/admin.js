@@ -51,6 +51,36 @@ router.get('/stats', async (req, res, next) => {
     // Utilisateurs non verifies
     const nonVerifies = await db.query('SELECT COUNT(*) FROM users WHERE verifie = false');
 
+    // Candidatures (workflow de reservation)
+    const [candEnAttente, candContactees, candRefusees] = await Promise.all([
+      db.query("SELECT COUNT(*) FROM reservations WHERE statut = 'en_attente'"),
+      db.query("SELECT COUNT(*) FROM reservations WHERE statut = 'contacte'"),
+      db.query("SELECT COUNT(*) FROM reservations WHERE statut = 'refuse'"),
+    ]);
+
+    // Candidatures en attente depuis plus de 3 jours (proprietaires inactifs)
+    const candStagnantes = await db.query(`
+      SELECT COUNT(*) FROM reservations
+      WHERE statut = 'en_attente' AND cree_le <= NOW() - INTERVAL '3 days'
+    `);
+
+    // Messagerie
+    const [totalConversations, totalMessages, messagesNonLus] = await Promise.all([
+      db.query('SELECT COUNT(*) FROM conversations'),
+      db.query('SELECT COUNT(*) FROM messages'),
+      db.query('SELECT COUNT(*) FROM messages WHERE lu = false'),
+    ]);
+
+    const conversationsParType = await db.query(`
+      SELECT entite_type, COUNT(*) as total FROM conversations GROUP BY entite_type
+    `);
+
+    // Nouvelles conversations/messages sur 7 jours
+    const [nouvellesConv, nouveauxMsg] = await Promise.all([
+      db.query("SELECT COUNT(*) FROM conversations WHERE cree_le >= NOW() - INTERVAL '7 days'"),
+      db.query("SELECT COUNT(*) FROM messages WHERE cree_le >= NOW() - INTERVAL '7 days'"),
+    ]);
+
     res.json({
       success: true,
       stats: {
@@ -69,6 +99,17 @@ router.get('/stats', async (req, res, next) => {
         note_moyenne_globale:   parseFloat(noteMoyenne.rows[0].moyenne || 0).toFixed(1),
         volume_encheres_cours:  parseInt(volumeEncheres.rows[0].total),
         users_non_verifies:     parseInt(nonVerifies.rows[0].count),
+        candidatures_en_attente:    parseInt(candEnAttente.rows[0].count),
+        candidatures_contactees:    parseInt(candContactees.rows[0].count),
+        candidatures_refusees:      parseInt(candRefusees.rows[0].count),
+        candidatures_stagnantes:    parseInt(candStagnantes.rows[0].count),
+        total_conversations:        parseInt(totalConversations.rows[0].count),
+        total_messages:             parseInt(totalMessages.rows[0].count),
+        messages_non_lus:           parseInt(messagesNonLus.rows[0].count),
+        conversations_dons:         parseInt(conversationsParType.rows.find(r => r.entite_type === 'don')?.total || 0),
+        conversations_encheres:     parseInt(conversationsParType.rows.find(r => r.entite_type === 'enchere')?.total || 0),
+        nouvelles_conversations_7j: parseInt(nouvellesConv.rows[0].count),
+        nouveaux_messages_7j:       parseInt(nouveauxMsg.rows[0].count),
       },
     });
   } catch (err) { next(err); }
