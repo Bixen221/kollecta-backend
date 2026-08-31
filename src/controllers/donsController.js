@@ -254,27 +254,20 @@ const choisirCandidat = async (req, res, next) => {
     if (r.statut !== 'en_attente') return res.status(400).json({ success: false, message: 'Cette candidature n\'est plus en attente.' });
     if (r.quantite_dispo <= 0) return res.status(400).json({ success: false, message: 'Plus de disponibilités pour ce don.' });
 
-    // Choisir ce candidat
+    // Choisir ce candidat : il reçoit TOUTE la quantité disponible, le don se clôture entièrement
     await db.query("UPDATE reservations SET statut = 'contacte', contact_le = NOW(), deadline_confirm = NOW() + INTERVAL '48 hours' WHERE id = $1", [r.id]);
-    const { rows: updatedDon } = await db.query(
-      'UPDATE dons SET quantite_dispo = quantite_dispo - 1 WHERE id = $1 RETURNING quantite_dispo',
-      [r.don_id]
-    );
+    await db.query("UPDATE dons SET quantite_dispo = 0, statut = 'cloture' WHERE id = $1", [r.don_id]);
 
     await notifContactInitie(r.demandeur_id, `${req.user.prenom} ${req.user.nom}`, r.titre, r.id);
 
-    // Si plus de disponibilités, clôturer le don et refuser les autres candidats en attente
-    if (updatedDon[0].quantite_dispo <= 0) {
-      await db.query("UPDATE dons SET statut = 'cloture' WHERE id = $1", [r.don_id]);
-
-      const { rows: autres } = await db.query(
-        "SELECT id, demandeur_id FROM reservations WHERE don_id = $1 AND statut = 'en_attente' AND id != $2",
-        [r.don_id, r.id]
-      );
-      for (const autre of autres) {
-        await db.query("UPDATE reservations SET statut = 'refuse' WHERE id = $1", [autre.id]);
-        await notifDonSupprime(autre.demandeur_id, r.titre);
-      }
+    // Refuser tous les autres candidats en attente (le don est intégralement attribué)
+    const { rows: autres } = await db.query(
+      "SELECT id, demandeur_id FROM reservations WHERE don_id = $1 AND statut = 'en_attente' AND id != $2",
+      [r.don_id, r.id]
+    );
+    for (const autre of autres) {
+      await db.query("UPDATE reservations SET statut = 'refuse' WHERE id = $1", [autre.id]);
+      await notifDonSupprime(autre.demandeur_id, r.titre);
     }
 
     res.json({ success: true, message: 'Candidat choisi ! Vous pouvez maintenant échanger avec lui.' });
